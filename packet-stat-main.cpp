@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
         }
         printf("%u bytes captured\n", header->caplen);
         
-        printPacketInfo(packet, header->caplen);  // 정보 출력!!
+        func(packet, header->caplen);  // 정보 출력!!
     }
 
     pcap_close(handle);
