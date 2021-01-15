@@ -6,6 +6,24 @@ void StatPacket(const u_char* packet, u_int packet_size)
 {
     int offset = 0;
 
+    // ========== 이더넷 헤더 ==========
+
+    EthHdr* ethPacket = (EthHdr*)(packet);
+    
+    L2Key src, dst;
+    src.setMac(ethPacket->ether_shost);
+    dst.setMac(ethPacket->ether_dhost);
+
+    ethMap[src].txPackets++;
+    ethMap[src].txBytes += packet_size;
+    ethMap[dst].rxPackets++;
+    ethMap[dst].rxBytes += packet_size;
+
+    if(ntohs(ethPacket->ether_type) != ETHERTYPE_IP)
+        return;
+
+    // ========== IP 헤더 ==========
+
     offset += LIBNET_ETH_H;
     IpHdr* ipPacket = (IpHdr*)(packet+offset);
 
@@ -53,6 +71,16 @@ void StatPacket(const u_char* packet, u_int packet_size)
 void PrintStat()
 {
     Stat* statptr = nullptr;
+
+    printf("\nEthernet\n");
+    printf("Mac                Tx Packets  Tx Bytes  Rx Packets  Rx Bytes\n");
+    for (auto it = ethMap.begin(); it != ethMap.end(); it++)
+    {
+        it->first.printMac();
+        statptr = &(it->second);
+        printf("  %10d  %8d  %10d  %8d\n",
+        statptr->txPackets, statptr->txBytes, statptr->rxPackets, statptr->rxBytes);
+    }
 
     printf("\nIP\n");
     printf("IP\t\tTx Packets  Tx Bytes  Rx Packets  Rx Bytes\n");
