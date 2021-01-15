@@ -1,6 +1,8 @@
 // packet-stat.h
 
-#pragma once
+#ifndef _PACKET_STAT_H_
+#define _PACKET_STAT_H_
+
 #include <sys/types.h>
 
 #include <libnet.h>
@@ -21,25 +23,26 @@ typedef struct
     int rxBytes;
 } Stat;
 
-void func(const u_char* packet, u_int packet_size)
+class L4Key
 {
-    static std::map<in_addr_t, Stat> map;
+public:
+    in_addr_t ip;
+    u_int16_t port;
 
-    IpHdr* ipPacket = (IpHdr*)(packet+LIBNET_ETH_H);
-
-    printf("srcIp: %s\n", inet_ntoa(ipPacket->ip_src));
-    printf("dstIp: %s\n", inet_ntoa(ipPacket->ip_dst));
-
-    map[ipPacket->ip_src.s_addr].txPackets++;
-    map[ipPacket->ip_src.s_addr].txBytes += packet_size;
-    map[ipPacket->ip_dst.s_addr].rxPackets++;
-    map[ipPacket->ip_dst.s_addr].rxBytes += packet_size;
-
-    Stat* statptr = nullptr;
-    for (auto it = map.begin(); it != map.end(); it++)
+    bool operator<(const L4Key& rhs) const
     {
-        statptr = &(it->second);
-        printf("%d\t%d\t%d\t%d\t%d\n", it->first,
-        statptr->txPackets, statptr->txBytes, statptr->rxPackets, statptr->rxBytes);
+        if(ip == rhs.ip)
+            return port < rhs.port;
+        
+        return ip < rhs.ip;
     }
-}
+};
+
+static std::map<in_addr_t, Stat> ipMap;
+static std::map<L4Key, Stat> tcpMap;
+static std::map<L4Key, Stat> udpMap;
+
+void StatPacket(const u_char* packet, u_int packet_size);
+void PrintStat();
+
+#endif
