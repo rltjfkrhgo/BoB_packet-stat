@@ -32,15 +32,6 @@ void StatPacket(const u_char* packet, u_int packet_size)
     ipMap[ipPacket->ip_dst.s_addr].rxPackets++;
     ipMap[ipPacket->ip_dst.s_addr].rxBytes += packet_size;
 
-    Convo<in_addr_t> ipConvo;
-    ipConvo.src = ipPacket->ip_src.s_addr;
-    ipConvo.dst = ipPacket->ip_dst.s_addr;
-
-    ipConvoMap[ipConvo].txPackets++;
-    ipConvoMap[ipConvo].txBytes += packet_size;
-    ipConvoMap[ipConvo].rxPackets++;
-    ipConvoMap[ipConvo].rxBytes += packet_size;
-
     if(ipPacket->ip_p != 6 && 
        ipPacket->ip_p != 17)
        return;
@@ -85,8 +76,6 @@ void PrintStat()
 {
     Stat* statptr = nullptr;
 
-    printf("\n    Endpoints\n");
-
     printf("\n========== Ethernet ==========\n");
     printf("Mac                Tx Packets  Tx Bytes  Rx Packets  Rx Bytes\n");
     for (auto it = ethMap.begin(); it != ethMap.end(); it++)
@@ -124,19 +113,6 @@ void PrintStat()
         struct in_addr ip = {it->first.ip};
         statptr = &(it->second);
         printf("%s\t%5d  %10d  %8d  %10d  %8d\n", inet_ntoa(ip), ntohs(it->first.port),
-        statptr->txPackets, statptr->txBytes, statptr->rxPackets, statptr->rxBytes);
-    }
-
-    printf("\n    Conversations\n");
-
-    printf("\n========== IP ==========\n");
-    printf("IP\t\t->IP\t\tTx Packets  Tx Bytes  Rx Packets  Rx Bytes\n");
-    for (auto it = ipConvoMap.begin(); it != ipConvoMap.end(); it++)
-    {
-        struct in_addr srcIp = {it->first.src};
-        struct in_addr dstIp = {it->first.dst};
-        statptr = &(it->second);
-        printf("%s\t%s\t%10d  %8d  %10d  %8d\n", inet_ntoa(srcIp), inet_ntoa(dstIp),
         statptr->txPackets, statptr->txBytes, statptr->rxPackets, statptr->rxBytes);
     }
 }
