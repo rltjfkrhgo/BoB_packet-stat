@@ -10,10 +10,10 @@
 
 #include <stdio.h>
 
-typedef struct libnet_ethernet_hdr EthHdr;
-typedef struct libnet_ipv4_hdr     IpHdr;
-typedef struct libnet_tcp_hdr      TcpHdr;
-typedef struct libnet_udp_hdr      UdpHdr;
+typedef struct libnet_ethernet_hdr  EthHdr;
+typedef struct libnet_ipv4_hdr      IpHdr;
+typedef struct libnet_tcp_hdr       TcpHdr;
+typedef struct libnet_udp_hdr       UdpHdr;
 
 typedef struct
 {
@@ -23,12 +23,12 @@ typedef struct
     int  rxBytes;
 } Stat;
 
-class L2Key
+class Mac
 {
 public:
     u_int8_t  mac[ETHER_ADDR_LEN];
 
-    bool operator<(const L2Key& rhs) const
+    bool operator<(const Mac& rhs) const
     {
         for(int i = 0; i < ETHER_ADDR_LEN; i++)
         {
@@ -68,10 +68,30 @@ public:
     }
 };
 
-static std::map<L2Key, Stat>     ethMap;
+template <typename T>
+class Convo
+{
+public:
+    T src;
+    T dst;
+
+    bool operator<(const Convo<T>& rhs) const
+    {
+        if(src == rhs.src)
+            return dst < rhs.dst;
+        return src < rhs.src;
+    }
+};
+
+static std::map<Mac, Stat>       ethMap;
 static std::map<in_addr_t, Stat>  ipMap;
 static std::map<L4Key, Stat>     tcpMap;
 static std::map<L4Key, Stat>     udpMap;
+
+static std::map<Convo<Mac>, Stat>       ethConvoMap;
+static std::map<Convo<in_addr_t>, Stat>  ipConvoMap;
+static std::map<Convo<L4Key>, Stat>     tcpConvoMap;
+static std::map<Convo<L4Key>, Stat>     udpConvoMap;
 
 void StatPacket(const u_char* packet, u_int packet_size);
 void PrintStat();
