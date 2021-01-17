@@ -27,14 +27,25 @@ void StatPacket(const u_char* packet, u_int packet_size)
     offset += LIBNET_ETH_H;
     IpHdr* ipPacket = (IpHdr*)(packet+offset);
 
-    ipMap[ipPacket->ip_src.s_addr].txPackets++;
-    ipMap[ipPacket->ip_src.s_addr].txBytes += packet_size;
-    ipMap[ipPacket->ip_dst.s_addr].rxPackets++;
-    ipMap[ipPacket->ip_dst.s_addr].rxBytes += packet_size;
+    in_addr_t srcIp = ipPacket->ip_src.s_addr;
+    in_addr_t dstIp = ipPacket->ip_dst.s_addr;
+
+    ipMap[srcIp].txPackets++;
+    ipMap[srcIp].txBytes += packet_size;
+    ipMap[dstIp].rxPackets++;
+    ipMap[dstIp].rxBytes += packet_size;
+
+    Convo<in_addr_t> ipConvo;
+    ipConvo.src = srcIp;
+    ipConvo.dst = dstIp;
+    ipConvoMap[ipConvo].txPackets++;
+    ipConvoMap[ipConvo].txBytes += packet_size;
 
     if(ipPacket->ip_p != 6 && 
        ipPacket->ip_p != 17)
        return;
+
+    // ========== TCP or UDP 헤더 ==========
 
     // TCP 이면
     if(ipPacket->ip_p == 6)
@@ -76,6 +87,8 @@ void PrintStat()
 {
     Stat* statptr = nullptr;
 
+    printf("\n\n    Endpoints\n");
+
     printf("\n========== Ethernet ==========\n");
     printf("Mac                Tx Packets  Tx Bytes  Rx Packets  Rx Bytes\n");
     for (auto it = ethMap.begin(); it != ethMap.end(); it++)
@@ -114,5 +127,19 @@ void PrintStat()
         statptr = &(it->second);
         printf("%s\t%5d  %10d  %8d  %10d  %8d\n", inet_ntoa(ip), ntohs(it->first.port),
         statptr->txPackets, statptr->txBytes, statptr->rxPackets, statptr->rxBytes);
+    }
+
+    printf("\n\n    Conversations\n");
+
+    printf("\n========== IP ==========\n");
+    printf("src IP\t\tdst IP\t\tPackets    Bytes\n");
+    for(auto it = ipConvoMap.begin(); it != ipConvoMap.end(); it++)
+    {
+        struct in_addr srcIp = {it->first.src};
+        struct in_addr dstIp = {it->first.dst};
+        statptr = &(it->second);
+        printf("%s\t", inet_ntoa(srcIp));
+        printf("%s\t%7d  %7d\n",  inet_ntoa(dstIp),
+        statptr->txPackets, statptr->txBytes);
     }
 }
