@@ -19,6 +19,10 @@ void StatPacket(const u_char* packet, u_int packet_size)
     ethMap[dstMac].rxPackets++;
     ethMap[dstMac].rxBytes += packet_size;
 
+    Convo<Mac> macConvo = {srcMac, dstMac};
+    ethConvoMap[macConvo].txPackets++;
+    ethConvoMap[macConvo].txBytes += packet_size;
+
     if(ntohs(ethPacket->ether_type) != ETHERTYPE_IP)
         return;
 
@@ -35,9 +39,7 @@ void StatPacket(const u_char* packet, u_int packet_size)
     ipMap[dstIp].rxPackets++;
     ipMap[dstIp].rxBytes += packet_size;
 
-    Convo<in_addr_t> ipConvo;
-    ipConvo.src = srcIp;
-    ipConvo.dst = dstIp;
+    Convo<in_addr_t> ipConvo = {srcIp, dstIp};
     ipConvoMap[ipConvo].txPackets++;
     ipConvoMap[ipConvo].txBytes += packet_size;
 
@@ -53,16 +55,20 @@ void StatPacket(const u_char* packet, u_int packet_size)
         offset += ipPacket->ip_hl*4;
         TcpHdr* tcpPacket = (TcpHdr*)(packet+offset);
 
-        L4Key src, dst;
-        src.ip = ipPacket->ip_src.s_addr;
-        src.port = tcpPacket->th_sport;
-        dst.ip = ipPacket->ip_dst.s_addr;
-        dst.port = tcpPacket->th_dport;
+        L4Key srcTcp, dstTcp;
+        srcTcp.ip = ipPacket->ip_src.s_addr;
+        srcTcp.port = tcpPacket->th_sport;
+        dstTcp.ip = ipPacket->ip_dst.s_addr;
+        dstTcp.port = tcpPacket->th_dport;
 
-        tcpMap[src].txPackets++;
-        tcpMap[src].txBytes += packet_size;
-        tcpMap[dst].rxPackets++;
-        tcpMap[dst].rxBytes += packet_size;
+        tcpMap[srcTcp].txPackets++;
+        tcpMap[srcTcp].txBytes += packet_size;
+        tcpMap[dstTcp].rxPackets++;
+        tcpMap[dstTcp].rxBytes += packet_size;
+
+        Convo<L4Key> tcpConvo = {srcTcp, dstTcp};
+        tcpConvoMap[tcpConvo].txPackets++;
+        tcpConvoMap[tcpConvo].txBytes += packet_size;
     }
 
     // UDP 이면
@@ -70,16 +76,21 @@ void StatPacket(const u_char* packet, u_int packet_size)
     {
         offset += ipPacket->ip_hl*4;
         UdpHdr* udpPacket = (UdpHdr*)(packet+offset);
-        L4Key src, dst;
-        src.ip = ipPacket->ip_src.s_addr;
-        src.port = udpPacket->uh_sport;
-        dst.ip = ipPacket->ip_dst.s_addr;
-        dst.port = udpPacket->uh_dport;
 
-        udpMap[src].txPackets++;
-        udpMap[src].txBytes += packet_size;
-        udpMap[dst].rxPackets++;
-        udpMap[dst].rxBytes += packet_size;
+        L4Key srcUdp, dstUdp;
+        srcUdp.ip = ipPacket->ip_src.s_addr;
+        srcUdp.port = udpPacket->uh_sport;
+        dstUdp.ip = ipPacket->ip_dst.s_addr;
+        dstUdp.port = udpPacket->uh_dport;
+
+        udpMap[srcUdp].txPackets++;
+        udpMap[srcUdp].txBytes += packet_size;
+        udpMap[dstUdp].rxPackets++;
+        udpMap[dstUdp].rxBytes += packet_size;
+
+        Convo<L4Key> udpConvo = {srcUdp, dstUdp};
+        udpConvoMap[udpConvo].txPackets++;
+        udpConvoMap[udpConvo].txBytes += packet_size;
     }
 }
 
@@ -131,8 +142,19 @@ void PrintStat()
 
     printf("\n\n    Conversations\n");
 
+    printf("\n========== Ethernet ==========\n");
+    printf("from Mac\t\tto Mac             Packets    Bytes\n");
+    for(auto it = ethConvoMap.begin(); it != ethConvoMap.end(); it++)
+    {
+        it->first.src.printMac();
+        printf("\t");
+        it->first.dst.printMac();
+        statptr = &(it->second);
+        printf("  %7d  %7d\n", statptr->txPackets, statptr->txBytes);
+    }
+
     printf("\n========== IP ==========\n");
-    printf("src IP\t\tdst IP\t\tPackets    Bytes\n");
+    printf("from IP\t\tto IP\t\tPackets    Bytes\n");
     for(auto it = ipConvoMap.begin(); it != ipConvoMap.end(); it++)
     {
         struct in_addr srcIp = {it->first.src};
@@ -140,6 +162,30 @@ void PrintStat()
         statptr = &(it->second);
         printf("%s\t", inet_ntoa(srcIp));
         printf("%s\t%7d  %7d\n",  inet_ntoa(dstIp),
+        statptr->txPackets, statptr->txBytes);
+    }
+
+    printf("\n========== TCP ==========\n");
+    printf("from IP\t\tfrom Port  to IP\t\tto Port  Packets    Bytes\n");
+    for(auto it = tcpConvoMap.begin(); it != tcpConvoMap.end(); it++)
+    {
+        struct in_addr srcIp = {it->first.src.ip};
+        struct in_addr dstIp = {it->first.dst.ip};
+        statptr = &(it->second);
+        printf("%s\t%8d  ", inet_ntoa(srcIp), ntohs(it->first.src.port));
+        printf("%s\t%7d  %7d  %7d\n", inet_ntoa(dstIp), ntohs(it->first.dst.port),
+        statptr->txPackets, statptr->txBytes);
+    }
+
+    printf("\n========== UCP ==========\n");
+    printf("from IP\t\tfrom Port  to IP\t\tto Port  Packets    Bytes\n");
+    for(auto it = udpConvoMap.begin(); it != udpConvoMap.end(); it++)
+    {
+        struct in_addr srcIp = {it->first.src.ip};
+        struct in_addr dstIp = {it->first.dst.ip};
+        statptr = &(it->second);
+        printf("%s\t%8d  ", inet_ntoa(srcIp), ntohs(it->first.src.port));
+        printf("%s\t%7d  %7d  %7d\n", inet_ntoa(dstIp), ntohs(it->first.dst.port),
         statptr->txPackets, statptr->txBytes);
     }
 }

@@ -37,6 +37,16 @@ public:
         }
         return mac[ETHER_ADDR_LEN-1] < rhs.mac[ETHER_ADDR_LEN-1];
     }
+    
+    bool operator==(const Mac& rhs) const
+    {
+        for(int i = 0; i < ETHER_ADDR_LEN; i++)
+        {
+            if(mac[i] != rhs.mac[i])
+                return false;
+        }
+        return true;
+    }
 
     void setMac(u_int8_t* _mac)
     {
@@ -66,6 +76,11 @@ public:
         
         return ip < rhs.ip;
     }
+
+    bool operator==(const L4Key& rhs) const
+    {
+        return (ip == rhs.ip) && (port == rhs.port);
+    }
 };
 
 template <typename T>
@@ -77,6 +92,7 @@ public:
 
     bool operator<(const Convo<T>& rhs) const
     {
+        
         if(src == rhs.src)
             return dst < rhs.dst;
         return src < rhs.src;
