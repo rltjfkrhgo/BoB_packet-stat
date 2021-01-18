@@ -14,14 +14,17 @@ void StatPacket(const u_char* packet, u_int packet_size)
     srcMac.setMac(ethPacket->ether_shost);
     dstMac.setMac(ethPacket->ether_dhost);
 
-    ethMap[srcMac].txPackets++;
-    ethMap[srcMac].txBytes += packet_size;
-    ethMap[dstMac].rxPackets++;
-    ethMap[dstMac].rxBytes += packet_size;
+    Stat* srcStatPtr = &ethMap[srcMac];
+    srcStatPtr->txPackets++;
+    srcStatPtr->txBytes += packet_size;
+    Stat* dstStatPtr = &ethMap[dstMac];
+    dstStatPtr->rxPackets++;
+    dstStatPtr->rxBytes += packet_size;
 
     Convo<Mac> macConvo = {srcMac, dstMac};
-    ethConvoMap[macConvo].txPackets++;
-    ethConvoMap[macConvo].txBytes += packet_size;
+    Stat* convoStatPtr = &ethConvoMap[macConvo];
+    convoStatPtr->txPackets++;
+    convoStatPtr->txBytes += packet_size;
 
     if(ntohs(ethPacket->ether_type) != ETHERTYPE_IP)
         return;
@@ -34,63 +37,66 @@ void StatPacket(const u_char* packet, u_int packet_size)
     in_addr_t srcIp = ipPacket->ip_src.s_addr;
     in_addr_t dstIp = ipPacket->ip_dst.s_addr;
 
-    ipMap[srcIp].txPackets++;
-    ipMap[srcIp].txBytes += packet_size;
-    ipMap[dstIp].rxPackets++;
-    ipMap[dstIp].rxBytes += packet_size;
+    srcStatPtr = &ipMap[srcIp];
+    srcStatPtr->txPackets++;
+    srcStatPtr->txBytes += packet_size;
+    dstStatPtr = &ipMap[dstIp];
+    dstStatPtr->rxPackets++;
+    dstStatPtr->rxBytes += packet_size;
 
     Convo<in_addr_t> ipConvo = {srcIp, dstIp};
-    ipConvoMap[ipConvo].txPackets++;
-    ipConvoMap[ipConvo].txBytes += packet_size;
+    convoStatPtr = &ipConvoMap[ipConvo];
+    convoStatPtr->txPackets++;
+    convoStatPtr->txBytes += packet_size;
 
-    if(ipPacket->ip_p != 6 && 
-       ipPacket->ip_p != 17)
+    if(ipPacket->ip_p != IPPROTO_TCP && 
+       ipPacket->ip_p != IPPROTO_UDP)
        return;
 
     // ========== TCP or UDP 헤더 ==========
 
     // TCP 이면
-    if(ipPacket->ip_p == 6)
+    if(ipPacket->ip_p == IPPROTO_TCP)
     {
         offset += ipPacket->ip_hl*4;
         TcpHdr* tcpPacket = (TcpHdr*)(packet+offset);
 
-        L4Key srcTcp, dstTcp;
-        srcTcp.ip = ipPacket->ip_src.s_addr;
-        srcTcp.port = tcpPacket->th_sport;
-        dstTcp.ip = ipPacket->ip_dst.s_addr;
-        dstTcp.port = tcpPacket->th_dport;
+        L4Key srcTcp = {ipPacket->ip_src.s_addr, tcpPacket->th_sport};
+        L4Key dstTcp = {ipPacket->ip_dst.s_addr, tcpPacket->th_dport};
 
-        tcpMap[srcTcp].txPackets++;
-        tcpMap[srcTcp].txBytes += packet_size;
-        tcpMap[dstTcp].rxPackets++;
-        tcpMap[dstTcp].rxBytes += packet_size;
+        srcStatPtr = &tcpMap[srcTcp];
+        srcStatPtr->txPackets++;
+        srcStatPtr->txBytes += packet_size;
+        dstStatPtr = &tcpMap[dstTcp];
+        dstStatPtr->rxPackets++;
+        dstStatPtr->rxBytes += packet_size;
 
         Convo<L4Key> tcpConvo = {srcTcp, dstTcp};
-        tcpConvoMap[tcpConvo].txPackets++;
-        tcpConvoMap[tcpConvo].txBytes += packet_size;
+        convoStatPtr = &tcpConvoMap[tcpConvo];
+        convoStatPtr->txPackets++;
+        convoStatPtr->txBytes += packet_size;
     }
 
     // UDP 이면
-    if(ipPacket->ip_p == 17)
+    if(ipPacket->ip_p == IPPROTO_UDP)
     {
         offset += ipPacket->ip_hl*4;
         UdpHdr* udpPacket = (UdpHdr*)(packet+offset);
 
-        L4Key srcUdp, dstUdp;
-        srcUdp.ip = ipPacket->ip_src.s_addr;
-        srcUdp.port = udpPacket->uh_sport;
-        dstUdp.ip = ipPacket->ip_dst.s_addr;
-        dstUdp.port = udpPacket->uh_dport;
+        L4Key srcUdp = {ipPacket->ip_src.s_addr, udpPacket->uh_sport};
+        L4Key dstUdp = {ipPacket->ip_dst.s_addr, udpPacket->uh_dport};
 
-        udpMap[srcUdp].txPackets++;
-        udpMap[srcUdp].txBytes += packet_size;
-        udpMap[dstUdp].rxPackets++;
-        udpMap[dstUdp].rxBytes += packet_size;
+        srcStatPtr = &udpMap[srcUdp];
+        srcStatPtr->txPackets++;
+        srcStatPtr->txBytes += packet_size;
+        dstStatPtr = &udpMap[dstUdp];
+        dstStatPtr->rxPackets++;
+        dstStatPtr->rxBytes += packet_size;
 
         Convo<L4Key> udpConvo = {srcUdp, dstUdp};
-        udpConvoMap[udpConvo].txPackets++;
-        udpConvoMap[udpConvo].txBytes += packet_size;
+        convoStatPtr = &udpConvoMap[udpConvo];
+        convoStatPtr->txPackets++;
+        convoStatPtr->txBytes += packet_size;
     }
 }
 
